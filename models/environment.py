@@ -1,16 +1,32 @@
 import gym
 from gym import spaces
 import numpy as np
-from models.uncertainties import stochastic_demand
 
 class SupplyChainEnv(gym.Env):
-    def __init__(self, max_steps=1000, limiar_inventario=10):
+    def __init__(self, demand_data, max_steps=360, limiar_inventario=10):
         super(SupplyChainEnv, self).__init__()
         self.action_space = spaces.Box(low=-1, high=1, shape=(14,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(27,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(25,), dtype=np.float32)
         self.max_steps = max_steps
         self.limiar_inventario = limiar_inventario
         self.current_step = 0
+        self.q = 8
+        self.fn = 1
+        self.rn = 3
+        self.production_costs_suppliers = [6, 4]
+        self.production_costs_factories = [12, 10]
+        self.transport_cost = 2
+        self.penalty_costs = 10
+        self.unmet_demand_cost = 216
+        self.production_capacities = [600, 840, 600, 840]
+        self.processing_capacities = [840, 960]
+        self.stock_capacities = [6400, 7200, 1600, 1800]
+        self.initial_stock_levels = 800
+        self.material_available = [600, 840]
+        self.material_arrival_times = [600, 840]
+        self.material_arrival_times_factories = [240, 240]
+        self.stock_costs = [1] * 8  # Custos de inventário para todos os nós
+        self.demand_data = demand_data
         self.seed()
         self.reset()
 
@@ -36,7 +52,8 @@ class SupplyChainEnv(gym.Env):
         self.inventory = np.zeros((8,))  # 8 nós na cadeia de suprimentos
         self.production = np.zeros((2,))  # 2 fornecedores
         self.transport = np.zeros((14,))  # 14 fluxos de transporte
-        self.demand = np.array([stochastic_demand(50, 150, 0.1, t, 360, 100, 20) for t in range(3)]) # 3 variáveis de demanda
+        # self.demand = np.array([self.demand_data[self.current_step]])  # Usando os dados de demanda carregados
+        self.demand = self.demand_data[self.current_step]
         return self.get_observation()
 
     def transition_state(self, action):
@@ -53,15 +70,17 @@ class SupplyChainEnv(gym.Env):
         self.inventory[2:8] -= self.transport[:6]
         self.inventory[2:8] += self.transport[6:12]
         # Atualizar demandas (usando demanda estocástica)
-        self.demand = np.array([stochastic_demand(50, 150, 0.1, t, 360, 100, 20) for t in range(3)])
+        if self.current_step < len(self.demand_data):
+            # self.demand = np.array([self.demand_data[self.current_step]])
+            self.demand = self.demand_data[self.current_step]
         return self.get_observation()
 
     def calculate_reward(self, state, action):
         # Calcular custos de inventário, produção e transporte
-        inventory_cost = np.sum(self.inventory)
-        production_cost = np.sum(self.production)
-        transport_cost = np.sum(self.transport)
-        unmet_demand_penalty = np.sum(np.maximum(self.demand - self.inventory[:3], 0))
+        inventory_cost = np.sum(self.inventory * np.array(self.stock_costs))
+        production_cost = np.sum(self.production * np.array(self.production_costs_suppliers))
+        transport_cost = np.sum(self.transport * self.transport_cost)
+        unmet_demand_penalty = np.sum(np.maximum(self.demand - self.inventory[:3], 0) * self.unmet_demand_cost)
         reward = -(inventory_cost + production_cost + transport_cost + unmet_demand_penalty)
         return reward
 
@@ -72,12 +91,11 @@ class SupplyChainEnv(gym.Env):
             return True
         
         # Condição 2: Inventário abaixo de um limiar por um período prolongado
-        limiar_inventario = self.limiar_inventario
-        if np.any(self.inventory < limiar_inventario):
+        if np.any(self.inventory < self.limiar_inventario):
             return True
         
         return False
     
     def get_observation(self):
         # Retornar a observação do estado atual
-        return np.concatenate([self.inventory, self.production, self.transport, self.demand])
+        return np.concatenate([self.inventory, self.production, self.transport, [self.demand]])

@@ -48,12 +48,6 @@ pip install -r requirements.txt
     python main.py
     ```
 
-3. Avalei o modelo treinado:
-    ```bash
-    python experiments/evaluate.py
-    ```
-
-
 ## Configurações
 
 As configurações dos experimentos podem ser ajustadas no arquivo `experiments/config.yaml`.

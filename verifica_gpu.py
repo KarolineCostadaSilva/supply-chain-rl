@@ -1,21 +1,18 @@
-import tensorflow as tf
+import torch
 
 # Verificar se a GPU está disponível
-print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+num_gpus = torch.cuda.device_count()
+print("Num GPUs Available: ", num_gpus)
 
-# Configurar TensorFlow para usar a GPU
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
+if num_gpus > 0:
     try:
-        # Configurar o TensorFlow para não alocar toda a memória da GPU
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        print("TensorFlow configurado para usar a GPU")
+        # Configurar o PyTorch para usar a GPU
+        for i in range(num_gpus):
+            print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+        device = torch.device('cuda')
+        print("PyTorch configurado para usar a GPU")
     except RuntimeError as e:
         print(e)
-
-from experiments.train_ppo import train_ppo
-
-if __name__ == '__main__':
-    train_ppo('experiments/config.yaml')
-
+else:
+    device = torch.device('cpu')
+    print("No GPU available, using CPU")

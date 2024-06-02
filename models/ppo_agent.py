@@ -3,17 +3,61 @@ import random
 import torch
 import pandas as pd
 import os
+import gym
+# import tensorflow as tf
+from torch import nn
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.policies import ActorCriticPolicy
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from models.environment import SupplyChainEnv
-from models.policy import build_ppo2_model
+from models.neural_networks import ActorNetwork, CriticNetwork
+
+class CustomFeatureExtractor(BaseFeaturesExtractor):
+    def __init__(self, observation_space: gym.spaces.Box, features_dim: int = 64):
+        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
+        self.network = ActorNetwork(observation_space.shape, features_dim)
+    
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        return self.network(observations)
+
+class CustomActorCriticPolicy(ActorCriticPolicy):
+    def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
+        super(CustomActorCriticPolicy, self).__init__(observation_space, action_space, lr_schedule, **kwargs)
+        
+        self.actor = ActorNetwork(observation_space.shape, action_space.shape[0])
+        self.critic = CriticNetwork(observation_space.shape)
+        
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=lr_schedule(1))
+
+    def forward(self, obs):
+        actions = self.actor(obs)
+        values = self.critic(obs)
+        return actions, values
+
+    def _predict(self, obs, deterministic=False):
+        actions = self.actor(obs)
+        if deterministic:
+            actions = torch.tanh(actions)
+        return actions
+
+    def evaluate_actions(self, obs, actions):
+        value = self.critic(obs)
+        log_prob = self.actor(obs).log_prob(actions)
+        return value, log_prob, torch.zeros_like(log_prob)
 
 class PPOAgent:
     def __init__(self, env, seed=42):
         self.env = DummyVecEnv([lambda: env])
-        self.set_seed(seed)
+        # self.device = "cuda" if tf.config.list_physical_devices('GPU') else "cpu"
+        
+        policy_kwargs = {
+            "features_extractor_class": CustomFeatureExtractor,
+            "features_extractor_kwargs": dict(features_dim=64),
+            # "net_arch": [dict(pi=[64, 64], vf=[64, 64])]
+        }
         self.model = PPO(
-            "MlpPolicy", 
+            CustomActorCriticPolicy, 
             self.env, 
             verbose=1, 
             n_steps=2048, 
@@ -23,12 +67,11 @@ class PPOAgent:
             learning_rate=0.0001, 
             clip_range=0.2, 
             ent_coef=0.01,
-            policy_kwargs= {
-                "net_arch": [dict(pi=[64, 64], vf=[64, 64])]},
-            seed=seed,
-            device="cuda"
+            policy_kwargs=policy_kwargs,
+            seed=seed
         )
         self.log_dir = "results/logs"
+        self.set_seed(seed)
 
     def set_seed(self, seed):
         np.random.seed(seed)
@@ -71,10 +114,13 @@ class PPOAgent:
         self.model.save(path)
 
     def load(self, path):
-        self.model = PPO.load(path)
+        self.model = PPO.load(path, env=self.env)
 
 if __name__ == "__main__":
-    env = SupplyChainEnv()
-    agent = PPOAgent(env)
-    agent.train(10000)
-    agent.save("results/models/ppo_agent.zip")
+    scenarios = ['N0', 'N20', 'N40', 'N60']
+    for scenario in scenarios:
+        demand_data = pd.read_csv(f'data/processed/{scenario}.csv')['demand'].values
+        env = SupplyChainEnv(demand_data=demand_data)
+        agent = PPOAgent(env)
+        agent.train(10000)
+        agent.save(f"results/models/ppo_agent_{scenario}.zip")

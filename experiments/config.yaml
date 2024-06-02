@@ -1,7 +1,17 @@
 train_params:
   timesteps: 3600000  # 3.6 milhões de passos de tempo conforme o artigo
-  save_path: "results/models/ppo_agent.zip"
+  save_path: "results/models/ppo_agent"
+  scenarios:
+    - "N0"
+    - "N20"
+    - "N40"
+    - "N60"
   learning_rate: 0.0001
 
 eval_params:
   episodes: 10
+  scenarios:
+    - "N0"
+    - "N20"
+    - "N40"
+    - "N60"

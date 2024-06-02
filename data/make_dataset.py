@@ -10,17 +10,20 @@ def generate_sinusoidal_data(min_val, max_val, z, t, horizon, perturbation_std):
 
 def create_datasets():
     horizon = 360
-    min_demand = 100
-    max_demand = 300
     z = 1  # Number of peaks in the sinusoidal function
     t = np.arange(horizon)
     
-    demand_perturbations = [0, 20, 40, 60]
-    for p in demand_perturbations:
-        data = generate_sinusoidal_data(min_demand, max_demand, z, t, horizon, p)
-        df = pd.DataFrame(data, columns=['demand'])
+    scenarios = {
+        'N0': (100, 300, 0),
+        'N20': (100, 300, 20),
+        'N40': (100, 300, 40),
+        'N60': (100, 300, 60)
+    }
+    for scenario, (min_demand, max_demand, perturbation) in scenarios.items():
+        data = generate_sinusoidal_data(min_demand, max_demand, z, t, horizon, perturbation)
+        df = pd.DataFrame({'Time': t, 'Demand': data})
         os.makedirs('data/processed/', exist_ok=True)
-        df.to_csv(f'data/processed/demand_p{p}.csv', index=False)
+        df.to_csv(f'data/processed/{scenario}.csv', index=False)
 
 if __name__ == "__main__":
     create_datasets()
