@@ -73,18 +73,17 @@ class SupplyChainEnv(gym.Env):
     def apply_actions(self, action):
         # Aplica ações de produção e transporte
         # Ação de produção nos dois primeiros índices de ação
-        self.production += action[:2]
+        self.production = np.clip(self.production + action[:2], 0, self.production_capacities)
         # Ação de transporte nos próximos 12 índices
-        self.transport += action[2:14]
+        self.transport = np.clip(self.transport + action[2:14], 0, np.inf)  # Assumindo que não há limite superior claro para o transporte
 
     def update_inventory(self):
         # Atualiza o inventário com base na produção e transporte
         # Ajusta os estoques com base na produção e envios
-        self.inventory[:2] += self.production
-        self.inventory[2:8] -= self.transport[:6]
-        self.inventory[2:8] += self.transport[6:12]
+        self.inventory[:2] = np.clip(self.inventory[:2] + self.production - self.transport[:6], 0, self.stock_capacities[:2])
+        self.inventory[2:8] = np.clip(self.inventory[2:8] + self.transport[6:12] - self.transport[:6], 0, self.stock_capacities[2:8])
         # Subtrai a demanda atual do estoque
-        self.inventory -= self.demand
+        self.inventory = np.clip(self.inventory - self.demand, 0, self.stock_capacities)
 
     def calculate_reward(self, state, action):
         # Calcular custos de inventário, produção e transporte

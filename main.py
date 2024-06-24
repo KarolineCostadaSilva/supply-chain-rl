@@ -25,8 +25,8 @@ def main():
     # evaluate('experiments/config.yaml', scenario)
 
     # Plotando gráficos dos dados
-    plot_scenario('N20')
-    plot_scenario('N60')
+    # plot_scenario('N20')
+    # plot_scenario('N60')
 
     results = []
     for scenario in scenarios:

@@ -9,12 +9,12 @@ class LPAgent:
     def setup_model(self):
         self.model = pulp.LpProblem("SupplyChainOptimization", pulp.LpMinimize)
         
-        # Definir as variáveis de decisão para produção, transporte e estoque
+        # Defining decision variables for production, transportation, and inventory
         self.production_vars = [pulp.LpVariable(f'production_{i}', lowBound=0) for i in range(2)]
         self.transport_vars = [pulp.LpVariable(f'transport_{i}', lowBound=0) for i in range(12)]
         self.inventory_vars = [pulp.LpVariable(f'inventory_{i}', lowBound=0) for i in range(8)]
         
-        # Função objetivo: minimizar custos de produção, transporte e estoque
+        # Objective function: Minimizing production, transportation, and inventory costs
         production_costs = self.env.production_costs_suppliers
         transport_costs = self.env.transport_cost
         inventory_costs = self.env.stock_costs
@@ -23,7 +23,7 @@ class LPAgent:
                        pulp.lpSum([transport_costs * self.transport_vars[i] for i in range(12)]) +
                        pulp.lpSum([inventory_costs[i] * self.inventory_vars[i] for i in range(8)]))
         
-        # Restrições de capacidade de produção e estoque
+        # Capacity constraints for production and inventory
         production_capacities = self.env.production_capacities
         for i in range(2):
             self.model += self.production_vars[i] <= production_capacities[i]
@@ -32,22 +32,39 @@ class LPAgent:
         for i in range(8):
             self.model += self.inventory_vars[i] <= stock_capacities[i]
         
-        
-        # Restrições de balanceamento de material
-        # for i in range(8):  # Ajustar para lidar com o número correto de transport_vars e inventory_vars
-        #     if i < 2:  # Para os fornecedores
-        #         self.model += self.production_vars[i] - self.transport_vars[i * 6] == self.inventory_vars[i]
-        #     elif i < 6:  # Para centros de distribuição e varejistas
-        #         self.model += pulp.lpSum(self.transport_vars[(i - 2) * 3:(i - 1) * 3]) - pulp.lpSum(self.transport_vars[(i - 1) * 3:i * 3]) == self.inventory_vars[i]
-        #     else:  # Para os pontos de venda final
-        #         self.model += pulp.lpSum(self.transport_vars[(i - 2) * 3:(i - 1) * 3]) == self.inventory_vars[i]
-        for i in range(8):
-            self.model += (self.inventory_vars[i] == self.env.demand_data[self.env.current_step])
+        # Material balance constraints adjusted for transportation and production logic
+        # Suppliers
+        for i in range(2):  # Para fornecedores
+            self.model += self.production_vars[i] - pulp.lpSum(self.transport_vars[i*6:(i+1)*6]) == self.inventory_vars[i]
+
+        for i in range(2, 8):  # Para centros de distribuição e varejistas
+            received = pulp.lpSum(self.transport_vars[(i-2)*3:(i-1)*3]) if i > 2 else 0
+            sent = pulp.lpSum(self.transport_vars[(i-1)*3:i*3])
+            # Acesso seguro ao elemento de demanda considerando que 'demand' é um array
+            current_demand = self.env.demand_data[self.env.current_step] if i-2 >= 0 else 0
+            self.model += (received + self.inventory_vars[i-1] - sent - current_demand) == self.inventory_vars[i]
 
     def solve(self):
-        # Resolução do modelo
+        # Impressões de depuração antes de resolver o LP
+        print("Custos de Produção:", self.env.production_costs_suppliers)
+        print("Custos de Transporte:", self.env.transport_cost)
+        print("Custos de Inventário:", self.env.stock_costs)
+        print("Capacidades de Produção:", self.env.production_capacities)
+        print("Capacidades de Estoque:", self.env.stock_capacities)
+        for i, var in enumerate(self.production_vars + self.transport_vars + self.inventory_vars):
+            print(f"Variável {i}: {var.name}, Limite Inferior: {var.lowBound}, Limite Superior: {var.upBound}")
+
+        # Resolver o modelo
         self.model.solve()
         
+        # Impressões de depuração após resolver o LP
+        print("Solução do modelo:")
+        for v in self.production_vars + self.transport_vars + self.inventory_vars:
+            print(f"{v.name} = {v.varValue}")
+
+        # Verificar o status do solver
+        print("Status do Solver:", pulp.LpStatus[self.model.status])
+
         # Retorno de ações baseadas na solução do LP
         actions = [var.varValue for var in self.production_vars] + [var.varValue for var in self.transport_vars]
         return actions
