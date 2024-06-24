@@ -14,7 +14,7 @@ class LPAgent:
         self.transport_vars = [pulp.LpVariable(f'transport_{i}', lowBound=0) for i in range(12)]
         self.inventory_vars = [pulp.LpVariable(f'inventory_{i}', lowBound=0) for i in range(8)]
         
-        # Definir função objetivo (minimizar custos)
+        # Função objetivo: minimizar custos de produção, transporte e estoque
         production_costs = self.env.production_costs_suppliers
         transport_costs = self.env.transport_cost
         inventory_costs = self.env.stock_costs
@@ -23,28 +23,26 @@ class LPAgent:
                        pulp.lpSum([transport_costs * self.transport_vars[i] for i in range(12)]) +
                        pulp.lpSum([inventory_costs[i] * self.inventory_vars[i] for i in range(8)]))
         
-        # Definir restrições de capacidade de produção
+        # Restrições de capacidade de produção e estoque
         production_capacities = self.env.production_capacities
         for i in range(2):
             self.model += self.production_vars[i] <= production_capacities[i]
         
-        # Definir restrições de capacidade de estoque
         stock_capacities = self.env.stock_capacities
         for i in range(8):
             self.model += self.inventory_vars[i] <= stock_capacities[i]
         
-        # Definir restrições de balanceamento de material
-        # self.model += (self.production_vars[0] - self.transport_vars[0] == self.inventory_vars[0])  # Nó 1
-        # self.model += (self.transport_vars[0] - self.transport_vars[1] == self.inventory_vars[1])   # Nó 2
-        # self.model += (self.production_vars[1] - self.transport_vars[2] == self.inventory_vars[2])  # Nó 3
-        # self.model += (self.transport_vars[2] - self.transport_vars[3] == self.inventory_vars[3])   # Nó 4
-        # self.model += (self.transport_vars[1] - self.transport_vars[4] == self.inventory_vars[4])   # Nó 5
-        # self.model += (self.transport_vars[4] - self.transport_vars[5] == self.inventory_vars[5])   # Nó 6
-        # self.model += (self.transport_vars[3] - self.transport_vars[6] == self.inventory_vars[6])   # Nó 7
-        # self.model += (self.transport_vars[5] - self.transport_vars[7] == self.inventory_vars[7])   # Nó 8
-        # Definir restrições de balanceamento de material conforme a metodologia do artigo
-        for i in range(1, 9):
-            self.model += (self.production_vars[i % 2] - self.transport_vars[i - 1] == self.inventory_vars[i - 1])
+        
+        # Restrições de balanceamento de material
+        # for i in range(8):  # Ajustar para lidar com o número correto de transport_vars e inventory_vars
+        #     if i < 2:  # Para os fornecedores
+        #         self.model += self.production_vars[i] - self.transport_vars[i * 6] == self.inventory_vars[i]
+        #     elif i < 6:  # Para centros de distribuição e varejistas
+        #         self.model += pulp.lpSum(self.transport_vars[(i - 2) * 3:(i - 1) * 3]) - pulp.lpSum(self.transport_vars[(i - 1) * 3:i * 3]) == self.inventory_vars[i]
+        #     else:  # Para os pontos de venda final
+        #         self.model += pulp.lpSum(self.transport_vars[(i - 2) * 3:(i - 1) * 3]) == self.inventory_vars[i]
+        for i in range(8):
+            self.model += (self.inventory_vars[i] == self.env.demand_data[self.env.current_step])
 
     def solve(self):
         # Resolução do modelo

@@ -14,7 +14,7 @@ def train_ppo(config_path, scenario):
     env = SupplyChainEnv(demand_data=demand_data)
     agent = PPOAgent(env, seed=42)
         
-    agent.train(config['train_params']['timesteps'], log_dir=f"results/logs/{scenario}")
+    agent.train(config['train_params']['timesteps'], log_dir=f"results/logs/{scenario}") # erro aconteceu nessa linha
     agent.save(f"results/models/ppo_agent_{scenario}.zip")
     
     plot_results(f"results/logs/{scenario}", f"results/plots/training_plot_{scenario}.png")
