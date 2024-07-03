@@ -52,6 +52,23 @@ def plot_results(log_dir, save_path):
     plt.savefig(save_path)
     plt.close()
     
+    
+def plot_scenario_costs(scenarios, results):
+    scenario_labels = scenarios
+    costs = [result['lp_cost'] for result in results]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(scenario_labels, costs, marker='o', linestyle='-')
+    plt.title('Custos Operacionais por Cenário')
+    plt.xlabel('Cenário')
+    plt.ylabel('Custo Operacional')
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig('results/plots/scenario_costs_plot.png')
+    plt.show()
+
+
 if __name__ == '__main__':
     plot_scenario('N20')
     plot_scenario('N60')

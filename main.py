@@ -5,6 +5,8 @@ from experiments.evaluate import evaluate
 from models.lp_agent import LPAgent
 from models.environment import SupplyChainEnv
 from utils.plotting import plot_scenario
+from utils.plotting import plot_scenario_costs 
+
 
 def main():
     scenarios = ['N0', 'N20', 'N40', 'N60', 'N0cl', 'N20cl', 'N40cl', 'N60cl', 'rN0', 'rN50', 'rN100', 'rN200', 'rN0cl', 'rN50cl', 'rN100cl', 'rN200cl', 'N20stc']
@@ -39,6 +41,10 @@ def main():
     df_results = pd.DataFrame(results)
     df_results.to_csv('results/scenario_evaluation_lp.csv', index=False)
     print("Evaluation results saved to 'scenario_evaluation_lp.csv'.")
+
+    
+    # Plotando resultados usando a função de plotagem
+    plot_scenario_costs(scenarios[:4], results[:4])
 
 if __name__ == "__main__":
     main()
