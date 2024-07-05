@@ -1,0 +1,2 @@
+https://github.com/caburu/gym-supplychain # Repositório do autor do artigo
+https://github.com/caburu/rl-baselines3-zoo # Repositório contendo a parte do PPO + RL

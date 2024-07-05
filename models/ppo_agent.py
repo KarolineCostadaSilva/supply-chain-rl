@@ -69,18 +69,20 @@ class PPOAgent:
         policy_kwargs = {
             "features_extractor_class": CustomFeatureExtractor,
             "features_extractor_kwargs": dict(features_dim=64),
+            "activation_fn": torch.nn.Tanh,  # Setting activation to TanH
         }
         self.model = PPO(
             CustomActorCriticPolicy, 
             self.env, 
             verbose=1, 
-            n_steps=2048, 
-            batch_size=64, 
-            n_epochs=10, 
-            gamma=0.99, 
-            learning_rate=0.0001, 
-            clip_range=0.2, 
+            n_steps=1024,  # Adjusted number of steps per data collection
+            batch_size=64,  # Mini-batch size
+            n_epochs=20,  # Number of epochs per update
+            gamma=0.999,  # Discount factor
+            learning_rate=0.0001,  # Constant learning rate
+            clip_range=0.2,  # Clip range for PPO
             ent_coef=0.01,
+            vf_coef=0.88331,  # Coefficient of the value function loss
             policy_kwargs=policy_kwargs,
             seed=seed,
             device=self.device
@@ -144,11 +146,11 @@ class PPOAgent:
     def load(self, path):
         self.model = PPO.load(path, env=self.env)
 
-if __name__ == "__main__":
-    scenarios = ['N0', 'N20', 'N40', 'N60']
-    for scenario in scenarios:
-        demand_data = pd.read_csv(f'data/processed/{scenario}.csv')['demand'].values
-        env = SupplyChainEnv(demand_data=demand_data)
-        agent = PPOAgent(env)
-        agent.train(10000)
-        agent.save(f"results/models/ppo_agent_{scenario}.zip")
+# if __name__ == "__main__":
+#     scenarios = ['N0', 'N20', 'N40', 'N60']
+#     for scenario in scenarios:
+#         demand_data = pd.read_csv(f'data/processed/{scenario}.csv')['demand'].values
+#         env = SupplyChainEnv(demand_data=demand_data)
+#         agent = PPOAgent(env)
+#         agent.train(10000)
+#         agent.save(f"results/models/ppo_agent_{scenario}.zip")

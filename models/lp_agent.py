@@ -41,7 +41,8 @@ class LPAgent:
             received = pulp.lpSum(self.transport_vars[(i-2)*3:(i-1)*3]) if i > 2 else 0
             sent = pulp.lpSum(self.transport_vars[(i-1)*3:i*3])
             # Acesso seguro ao elemento de demanda considerando que 'demand' é um array
-            current_demand = self.env.demand_data[self.env.current_step] if i-2 >= 0 else 0
+            # current_demand = self.env.demand_data[self.env.current_step] if i-2 >= 0 else 0
+            current_demand = self.env.demand_data[self.env.current_step % len(self.env.demand_data)] if i-2 >= 0 else 0
             self.model += (received + self.inventory_vars[i-1] - sent - current_demand) == self.inventory_vars[i]
 
     def solve(self):
